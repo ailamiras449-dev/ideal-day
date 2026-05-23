@@ -1,0 +1,410 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.jsx";
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+import { useState } from "react";
+
+const STEPS = ["finance", "artifact", "idealday", "result"];
+
+const formatNum = (n) =>
+  n ? Number(n).toLocaleString("kk-KZ") : "0";
+
+function StepIndicator({ current }) {
+  const labels = ["Қаржы", "Артефакт", "Идеал күн", "Нәтиже"];
+  return (
+    <div style={{ display: "flex", gap: 0, marginBottom: 40, position: "relative" }}>
+      {labels.map((l, i) => {
+        const done = i < STEPS.indexOf(current);
+        const active = STEPS[i] === current;
+        return (
+          <div key={i} style={{ flex: 1, textAlign: "center", position: "relative" }}>
+            {i > 0 && (
+              <div style={{
+                position: "absolute", left: 0, top: 18, width: "50%", height: 2,
+                background: done ? "#C8A96E" : "#2a2a2a"
+              }} />
+            )}
+            {i < labels.length - 1 && (
+              <div style={{
+                position: "absolute", right: 0, top: 18, width: "50%", height: 2,
+                background: (done || active) && i < STEPS.indexOf(current) ? "#C8A96E" : "#2a2a2a"
+              }} />
+            )}
+            <div style={{
+              width: 36, height: 36, borderRadius: "50%", margin: "0 auto 8px",
+              background: active ? "#C8A96E" : done ? "#8a6a3a" : "#1a1a1a",
+              border: `2px solid ${active ? "#C8A96E" : done ? "#8a6a3a" : "#333"}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              position: "relative", zIndex: 1,
+              color: active ? "#0a0a0a" : done ? "#C8A96E" : "#555",
+              fontWeight: 700, fontSize: 14, fontFamily: "'Cormorant Garamond', serif"
+            }}>
+              {done ? "✓" : i + 1}
+            </div>
+            <div style={{ fontSize: 11, color: active ? "#C8A96E" : done ? "#8a6a3a" : "#444", letterSpacing: 1, textTransform: "uppercase" }}>
+              {l}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Input({ label, value, onChange, placeholder, prefix }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <label style={{ display: "block", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#888", marginBottom: 8, fontFamily: "'Cormorant Garamond', serif" }}>
+        {label}
+      </label>
+      <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid #333", paddingBottom: 8 }}>
+        {prefix && <span style={{ color: "#C8A96E", marginRight: 8, fontSize: 16 }}>{prefix}</span>}
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+          placeholder={placeholder || "0"}
+          style={{
+            background: "none", border: "none", outline: "none", width: "100%",
+            color: "#E8DCC8", fontSize: 22, fontFamily: "'Cormorant Garamond', serif", letterSpacing: 1
+          }}
+        />
+        <span style={{ color: "#555", fontSize: 13 }}>₸</span>
+      </div>
+    </div>
+  );
+}
+
+function Textarea({ label, value, onChange, placeholder, rows = 4 }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <label style={{ display: "block", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#888", marginBottom: 8, fontFamily: "'Cormorant Garamond', serif" }}>
+        {label}
+      </label>
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        style={{
+          background: "#111", border: "1px solid #2a2a2a", borderRadius: 4, width: "100%",
+          color: "#E8DCC8", fontSize: 15, fontFamily: "'Cormorant Garamond', serif",
+          padding: "12px 14px", outline: "none", resize: "vertical", lineHeight: 1.7,
+          boxSizing: "border-box"
+        }}
+      />
+    </div>
+  );
+}
+
+function Btn({ children, onClick, disabled, secondary }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background: secondary ? "none" : disabled ? "#1e1e1e" : "#C8A96E",
+        color: secondary ? "#666" : disabled ? "#444" : "#0a0a0a",
+        border: secondary ? "1px solid #2a2a2a" : "none",
+        padding: "14px 32px", borderRadius: 2, cursor: disabled ? "not-allowed" : "pointer",
+        fontFamily: "'Cormorant Garamond', serif", fontWeight: 700, fontSize: 15,
+        letterSpacing: 2, textTransform: "uppercase", transition: "all 0.2s"
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+export default function App() {
+  const [step, setStep] = useState("finance");
+  const [income, setIncome] = useState("");
+  const [expense, setExpense] = useState("");
+  const [artifact, setArtifact] = useState("");
+  const [artifactDesc, setArtifactDesc] = useState("");
+  const [dayDetails, setDayDetails] = useState({
+    morning: "", work: "", evening: "", artifact_moment: ""
+  });
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const inc = Number(income) || 0;
+  const exp = Number(expense) || 0;
+  const kka = inc - exp;
+  const months3 = kka * 3;
+  const multiplier = kka < 250000 ? 3 : 2;
+  const artPrice = kka < 50000 ? 500000 : months3 * multiplier;
+
+  const idealDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 90);
+    return d.toLocaleDateString("kk-KZ", { day: "2-digit", month: "2-digit", year: "numeric" });
+  })();
+
+  const canGoArtifact = inc > 0 && exp >= 0 && inc > exp;
+  const canGoDay = artifact.trim().length > 2;
+  const canGenerate = dayDetails.morning.trim() && dayDetails.work.trim() && dayDetails.evening.trim() && dayDetails.artifact_moment.trim();
+
+  async function generateIdealDay() {
+    setLoading(true);
+    setError("");
+    setResult("");
+    try {
+      const prompt = `Сен — қазақша жазатын коуч-жазушысың. Төмендегі деректер бойынша ИДЕАЛ КҮН жаз.
+
+ЕРЕЖЕЛЕР:
+- Өткен шақпен жаз (бардым, кездестім, ішттім т.с.с.)
+- Сын есім + етістік формуласын қолдан (ұйқым қанып ояндым, сергек болып т.б.)
+- Сағаттарды нақты жаз (07:00, 09:30 т.б.)
+- Артефактті күнге органикалық интеграция жаса
+- Жеке, жылы, детальды жаз — бір адамның дневник жазғанындай
+- Тек мәтін жаз, тақырып/подзаголовок қажет емес
+- 400-600 сөз
+
+ДЕРЕКТЕР:
+Идеал күн: ${idealDate}
+Артефакт: ${artifact} (бағасы: ${formatNum(artPrice)} ₸)
+Артефакт туралы: ${artifactDesc}
+
+Таң (07:00–09:00): ${dayDetails.morning}
+Жұмыс/күндіз (09:00–17:00): ${dayDetails.work}
+Кеш (17:00–22:00): ${dayDetails.evening}
+Артефакт сәті: ${dayDetails.artifact_moment}
+
+Осы деректер бойынша керемет, детальды, сезімге толы Идеал Күн жаз. Соңын сағат 22:00-де жатар алдындағы ризашылық сезімімен аяқта.`;
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.map(b => b.text || "").join("\n") || "";
+      setResult(text);
+      setStep("result");
+    } catch (e) {
+      setError("Қате шықты. Қайта көріңіз.");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#0a0a0a",
+      fontFamily: "'Cormorant Garamond', serif", color: "#E8DCC8",
+      display: "flex", flexDirection: "column", alignItems: "center"
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&display=swap" rel="stylesheet" />
+
+      {/* Header */}
+      <div style={{ width: "100%", borderBottom: "1px solid #1a1a1a", padding: "24px 0", textAlign: "center", marginBottom: 40 }}>
+        <div style={{ fontSize: 11, letterSpacing: 6, color: "#C8A96E", textTransform: "uppercase", marginBottom: 8 }}>90 күндік</div>
+        <h1 style={{ margin: 0, fontSize: 42, fontWeight: 300, letterSpacing: 3, color: "#E8DCC8" }}>Идеал Күн</h1>
+        <div style={{ fontSize: 13, color: "#555", marginTop: 6, letterSpacing: 1 }}>Болашақ өзіңді қазір жаз</div>
+      </div>
+
+      <div style={{ width: "100%", maxWidth: 560, padding: "0 24px 80px" }}>
+        <StepIndicator current={step} />
+
+        {/* STEP 1: Finance */}
+        {step === "finance" && (
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 300, marginBottom: 6 }}>Қаржылық жағдай</div>
+            <div style={{ fontSize: 14, color: "#666", marginBottom: 32, lineHeight: 1.6 }}>
+              Ай сайынғы табысыңыз бен шығыныңызды енгізіңіз. Жүйе артефакт бағасын автоматты есептейді.
+            </div>
+            <Input label="Ай сайынғы табыс (ҚТ)" value={income} onChange={setIncome} />
+            <Input label="Ай сайынғы шығын (ҚШ)" value={expense} onChange={setExpense} />
+
+            {kka > 0 && (
+              <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 4, padding: 20, marginBottom: 28 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  {[
+                    ["Қолда қалатын ақша", `${formatNum(kka)} ₸`],
+                    ["3 айда жиналатын", `${formatNum(months3)} ₸`],
+                    ["Коэффициент", `×${multiplier}`],
+                    ["Артефакт бағасы", `${formatNum(artPrice)} ₸`],
+                  ].map(([k, v], i) => (
+                    <div key={i}>
+                      <div style={{ fontSize: 10, letterSpacing: 2, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>{k}</div>
+                      <div style={{ fontSize: 18, color: i === 3 ? "#C8A96E" : "#E8DCC8", fontWeight: i === 3 ? 600 : 300 }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #1a1a1a", fontSize: 12, color: "#555" }}>
+                  📅 Идеал күніңіз: <span style={{ color: "#C8A96E" }}>{idealDate}</span>
+                </div>
+              </div>
+            )}
+
+            <Btn onClick={() => setStep("artifact")} disabled={!canGoArtifact}>
+              Келесі →
+            </Btn>
+          </div>
+        )}
+
+        {/* STEP 2: Artifact */}
+        {step === "artifact" && (
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 300, marginBottom: 6 }}>Артефакт таңдау</div>
+            <div style={{ fontSize: 14, color: "#666", marginBottom: 8, lineHeight: 1.6 }}>
+              Бағасы шамамен <span style={{ color: "#C8A96E" }}>{formatNum(artPrice)} ₸</span> болатын артефакт таңдаңыз.
+            </div>
+            <div style={{ fontSize: 12, color: "#444", marginBottom: 28, lineHeight: 1.5 }}>
+              Мысалы: iPhone, саяхат, ата-анаға умра, жаңа ноутбук, велосипед, диван...
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: "block", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#888", marginBottom: 8 }}>
+                Артефакт атауы
+              </label>
+              <div style={{ borderBottom: "1px solid #333", paddingBottom: 8 }}>
+                <input
+                  value={artifact}
+                  onChange={e => setArtifact(e.target.value)}
+                  placeholder="мысалы: iPhone 16 Pro"
+                  style={{
+                    background: "none", border: "none", outline: "none", width: "100%",
+                    color: "#E8DCC8", fontSize: 22, fontFamily: "'Cormorant Garamond', serif"
+                  }}
+                />
+              </div>
+            </div>
+
+            <Textarea
+              label="Артефакт туралы толығырақ"
+              value={artifactDesc}
+              onChange={setArtifactDesc}
+              placeholder="Кімге? Не үшін? Оны алғанда не сезінесіз? Бұл сізге неге маңызды?"
+              rows={3}
+            />
+
+            <div style={{ display: "flex", gap: 12 }}>
+              <Btn secondary onClick={() => setStep("finance")}>← Артқа</Btn>
+              <Btn onClick={() => setStep("idealday")} disabled={!canGoDay}>Келесі →</Btn>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Day details */}
+        {step === "idealday" && (
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 300, marginBottom: 6 }}>Идеал күн — {idealDate}</div>
+            <div style={{ fontSize: 14, color: "#666", marginBottom: 32, lineHeight: 1.6 }}>
+              Сол күні не болғанын қысқаша сипаттаңыз. AI толық, сезімге толы мәтін жазады.
+            </div>
+
+            <Textarea
+              label="🌅 Таң (07:00–09:00)"
+              value={dayDetails.morning}
+              onChange={v => setDayDetails(d => ({ ...d, morning: v }))}
+              placeholder="Қашан оянасыз? Кіммен? Таңертеңгі ас қандай?"
+              rows={3}
+            />
+            <Textarea
+              label="💼 Күндіз (09:00–17:00)"
+              value={dayDetails.work}
+              onChange={v => setDayDetails(d => ({ ...d, work: v }))}
+              placeholder="Жұмыс, кездесулер, жетістіктер — не болды?"
+              rows={3}
+            />
+            <Textarea
+              label="🌆 Кеш (17:00–22:00)"
+              value={dayDetails.evening}
+              onChange={v => setDayDetails(d => ({ ...d, evening: v }))}
+              placeholder="Жақындарыңызбен бірге не іс-тіңіз? Демалыс, серуен..."
+              rows={3}
+            />
+            <Textarea
+              label={`🎁 Артефакт сәті — ${artifact}`}
+              value={dayDetails.artifact_moment}
+              onChange={v => setDayDetails(d => ({ ...d, artifact_moment: v }))}
+              placeholder="Артефактті кімге, қашан, қалай бердіңіз немесе алдыңыз? Реакция қандай болды?"
+              rows={3}
+            />
+
+            {error && <div style={{ color: "#c0392b", fontSize: 13, marginBottom: 16 }}>{error}</div>}
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <Btn secondary onClick={() => setStep("artifact")}>← Артқа</Btn>
+              <Btn onClick={generateIdealDay} disabled={!canGenerate || loading}>
+                {loading ? "Жазылуда..." : "✨ Идеал күн жаздыр"}
+              </Btn>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: Result */}
+        {step === "result" && (
+          <div>
+            <div style={{ textAlign: "center", marginBottom: 32 }}>
+              <div style={{ fontSize: 11, letterSpacing: 4, color: "#C8A96E", textTransform: "uppercase", marginBottom: 8 }}>Сіздің</div>
+              <div style={{ fontSize: 36, fontWeight: 300, marginBottom: 4 }}>Идеал Күніңіз</div>
+              <div style={{ fontSize: 16, color: "#C8A96E", letterSpacing: 2 }}>{idealDate}</div>
+            </div>
+
+            <div style={{
+              background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 4,
+              padding: "32px 28px", lineHeight: 1.9, fontSize: 16, color: "#D4C5A9",
+              marginBottom: 28, position: "relative", whiteSpace: "pre-wrap"
+            }}>
+              <div style={{
+                position: "absolute", top: -1, left: 32, right: 32, height: 1,
+                background: "linear-gradient(90deg, transparent, #C8A96E, transparent)"
+              }} />
+              {result}
+              <div style={{
+                position: "absolute", bottom: -1, left: 32, right: 32, height: 1,
+                background: "linear-gradient(90deg, transparent, #C8A96E, transparent)"
+              }} />
+            </div>
+
+            <div style={{ background: "#111", border: "1px solid #1a1a1a", borderRadius: 4, padding: 20, marginBottom: 28 }}>
+              <div style={{ fontSize: 11, letterSpacing: 2, color: "#555", textTransform: "uppercase", marginBottom: 16 }}>Жоспар</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {[
+                  ["Мақсат", artifact],
+                  ["Идеал күн", idealDate],
+                  ["Артефакт бағасы", `${formatNum(artPrice)} ₸`],
+                  ["Ай сайын жинау", `${formatNum(kka)} ₸`],
+                ].map(([k, v], i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: 10, letterSpacing: 2, color: "#444", textTransform: "uppercase", marginBottom: 3 }}>{k}</div>
+                    <div style={{ fontSize: 15, color: "#C8A96E" }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <Btn secondary onClick={() => { setStep("idealday"); setResult(""); }}>← Өзгерту</Btn>
+              <Btn onClick={() => {
+                navigator.clipboard?.writeText(result);
+                alert("Мәтін көшірілді!");
+              }}>
+                📋 Көшіру
+              </Btn>
+              <Btn secondary onClick={() => {
+                setStep("finance");
+                setIncome(""); setExpense(""); setArtifact(""); setArtifactDesc("");
+                setDayDetails({ morning: "", work: "", evening: "", artifact_moment: "" });
+                setResult("");
+              }}>
+                🔄 Жаңадан бастау
+              </Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
